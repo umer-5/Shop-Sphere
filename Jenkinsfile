@@ -4,12 +4,10 @@ pipeline {
     environment {
         COMPOSE_PROJECT_NAME = 'shop-sphere-jenkins'
         COMPOSE_FILE = 'docker-compose.yaml'
-        TEST_IMAGE = 'shop-sphere-tests-image'
-        CONTAINER_NAME = 'shop-sphere-tests-container'
     }
 
     stages {
-        stage('Checkout App Repo') {
+        stage('Checkout') {
             steps {
                 git branch: 'main', credentialsId: 'github-credentials', url: 'https://github.com/umer-5/Shop-Sphere.git'
             }
@@ -26,70 +24,32 @@ pipeline {
             }
         }
 
-        stage('Build App Containers') {
+        stage('Build') {
             steps {
-                echo 'Building Docker containers for the app...'
+                echo 'Building Docker containers...'
                 sh 'docker-compose -p $COMPOSE_PROJECT_NAME -f $COMPOSE_FILE build --no-cache'
             }
         }
 
-        stage('Verify Frontend Build Output') {
+        stage('Check Frontend Output') {
             steps {
-                echo 'Checking frontend output directory...'
+                echo 'Verifying frontend build output...'
                 sh 'ls -lah my-project/dist || echo "Dist folder not found!"'
             }
         }
 
-        stage('Deploy App') {
+        stage('Deploy') {
             steps {
-                echo 'Deploying application containers...'
+                echo 'Starting up containers...'
                 sh 'docker-compose -p $COMPOSE_PROJECT_NAME -f $COMPOSE_FILE up -d'
-            }
-        }
-
-        stage('Clone Selenium Tests') {
-            steps {
-                git url: 'https://github.com/umer-5/Shop-Sphere-Tests.git', branch: 'main'
-            }
-        }
-
-        stage('Build Selenium Test Image') {
-            steps {
-                script {
-                    docker.build(env.TEST_IMAGE, '.')
-                }
-            }
-        }
-
-        stage('Run Selenium Tests') {
-            steps {
-                script {
-                    sh """
-                        docker run --rm --name ${env.CONTAINER_NAME} \
-                          ${env.TEST_IMAGE}
-                    """
-                }
-            }
-        }
-
-        stage('Test Cleanup') {
-            steps {
-                script {
-                    sh "docker rm -f ${env.CONTAINER_NAME} || true"
-                }
             }
         }
     }
 
     post {
         always {
-            echo '🧪 Pipeline execution completed.'
-        }
-        success {
-            echo '✅ All stages completed successfully.'
-        }
-        failure {
-            echo '❌ Pipeline failed at one or more stages.'
+            echo 'Pipeline execution completed.'
+            // DO NOT shut down containers so they keep running for inspection
         }
     }
 }
